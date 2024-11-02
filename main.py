@@ -1,5 +1,4 @@
 import pygsheets
-import requests
 from datetime import datetime
 import smtplib
 
@@ -18,12 +17,37 @@ def get_user_details():
       if question == 'Y':
           continue
       else:
-          print(users)
           return list(users)
       
+def get_data():
+    try:
+        spreadsheet_flights = gc.open('Flights')
+        worksheet = spreadsheet_flights[0]
+        data = worksheet.get_all_records()
+    except pygsheets.exceptions.SpreadsheetNotFound:
+        spreadsheet_flights = gc.create('Flights')
+        worksheet = spreadsheet_flights[0]
+        data = 'no flights'
+
+    data_to_send = format_data(data)
+    return data_to_send
+    
+def format_data(flight_data):
+    formatted_data = "Flight Details:\n\n"
+    for flight in flight_data:
+        formatted_data += (
+            f"From: {flight['FROM']} ({flight['CODE']})\n"
+            f"To: {flight['TO']}\n"
+            f"Departure: {flight['Departure']}\n"
+            f"Return: {flight['Return']}\n"
+            f"Price: ${flight['Price']}\n"
+            "-----------------------------------\n"
+        )
+    return formatted_data
+
+
 def edit_pygsheet():
         users = get_user_details()
-        print(users)
         header = ['First Name', 'Last Name', 'Email']
         try:
             sh2 = gc.open('users')
@@ -47,13 +71,15 @@ def edit_pygsheet():
         return data
 
 def send_email_to_users():
-    data = edit_pygsheet()
-    print(data)
+    user_details = edit_pygsheet()
+    print(user_details)
+    data = get_data()
     user = 'szymonbryniakproject@gmail.com'
     password = 'psgw ndzo nnhm nylg'
-    with smtplib.SMTP('smtp.gmail.com') as connection:
-        connection.starttls()
-        connection.login(user=user, password=password)
-        connection.sendmail(msg=data, from_addr=user, to_addrs='oneplusszymonbryniak@gmail.com')
+    for i in user_details:
+        with smtplib.SMTP('smtp.gmail.com') as connection:
+            connection.starttls()
+            connection.login(user=user, password=password)
+            connection.sendmail(msg=data.encode('utf-8'), from_addr=user, to_addrs=i['Email'])
 
 send_email_to_users()
